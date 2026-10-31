@@ -142,6 +142,13 @@ erneuert:
 bash 3d-model-anything.sh --ctid 150
 ```
 
+Direkt per Einzeiler (das `_` ist wichtig, damit die Optionen als `$@`
+ankommen):
+
+```bash
+bash -c "$(wget -qLO - https://raw.githubusercontent.com/HatchetMan111/3DModelScanner-Proxmox/main/install/3d-model-anything.sh)" _ --ctid 150
+```
+
 Anderen Upstream-Stand testen:
 
 ```bash
