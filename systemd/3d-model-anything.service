@@ -12,6 +12,7 @@ WorkingDirectory=/opt/3d-model-anything
 Environment=NODE_ENV=production
 Environment=PORT=5188
 Environment=APP_VERSION=1.0.0
+Environment=OPENSSL_CONF=/opt/3d-model-anything/openssl.cnf
 ExecStart=/opt/node/bin/node /opt/3d-model-anything/server/server.js
 Restart=always
 RestartSec=3

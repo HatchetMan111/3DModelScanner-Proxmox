@@ -95,3 +95,27 @@ Umgesetzt:
 Bewusst nicht umgesetzt (niedrige Prioritaet, dokumentiert):
 - Conditional-Requests (If-Modified-Since/304), CSP-Header, `tail`-Timing im
   ERR-Trap, `tar --mode` statt chmod-Nachlauf.
+
+## Nachtrag: OpenSSL-Config im LXC (2026-10-31)
+
+Symptom auf einem echten Proxmox-Host:
+
+```
+/opt/node/bin/node: OpenSSL configuration error:
+...calling fopen(/etc/ssl/openssl.cnf, rb)
+Main process exited, code=exited, status=13/n/a
+```
+
+Ursache: Node 22 (offizieller Build) laedt beim Start die OpenSSL-Config;
+im unprivilegierten CT ist `/etc/ssl/openssl.cnf` fuer den Service-User
+`modelanything` nicht lesbar (bzw. durch die systemd-Sandbox nicht zugaenglich).
+
+Fix:
+- Installer kopiert die Config als root nach
+  `/opt/3d-model-anything/openssl.cnf` (0644, root:modelanything).
+- systemd-Unit setzt `Environment=OPENSSL_CONF=/opt/3d-model-anything/openssl.cnf`.
+- Preflight als `modelanything` via `runuser` prueft `node:crypto` vor dem Start.
+
+Verifiziert lokal: Kopie der Config + `OPENSSL_CONF` darauf -> Node startet;
+`OPENSSL_CONF` mit ungueltiger Datei -> Node bricht mit Config-Fehler ab
+(beweist, dass die Variable wirkt).

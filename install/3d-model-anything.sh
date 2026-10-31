@@ -509,6 +509,20 @@ chown -R "$APP_USER:$APP_USER" "$DATA_DIR"
 chmod 750 "$DATA_DIR"
 EOF
 
+msg_info "Lege lesbare OpenSSL-Config fuer den Service-User ab ..."
+pct exec "$CT_ID" -- bash -s -- "$APP_DIR" "$APP_USER" <<'EOF'
+set -euo pipefail
+APP_DIR="$1"
+APP_USER="$2"
+if [[ -r /etc/ssl/openssl.cnf ]]; then
+  cp -L /etc/ssl/openssl.cnf "${APP_DIR}/openssl.cnf"
+else
+  : > "${APP_DIR}/openssl.cnf"
+fi
+chown root:"$APP_USER" "${APP_DIR}/openssl.cnf"
+chmod 644 "${APP_DIR}/openssl.cnf"
+EOF
+
 if [[ "$CT_CREATED" == "0" ]]; then
   msg_info "Stoppe bestehenden Dienst fuer das Update ..."
   pct exec "$CT_ID" -- systemctl stop "$APP" 2>/dev/null || true
@@ -549,11 +563,14 @@ grep -qF "ExecStart=/opt/node/bin/node ${APP_DIR}/server/server.js" "$UNIT_SRC" 
   || { msg_error "systemd-Unit ist inkonsistent (ExecStart fehlt)."; exit 1; }
 sed -e "s|^Environment=PORT=.*|Environment=PORT=${APP_PORT}|" \
     -e "s|^Environment=APP_VERSION=.*|Environment=APP_VERSION=${APP_VERSION}|" \
+    -e "s|^Environment=OPENSSL_CONF=.*|Environment=OPENSSL_CONF=${APP_DIR}/openssl.cnf|" \
     "$UNIT_SRC" > "${BUILD_DIR}/unit.service"
 grep -q "^Environment=PORT=${APP_PORT}$" "${BUILD_DIR}/unit.service" \
   || { msg_error "Port konnte nicht in die systemd-Unit geschrieben werden."; exit 1; }
 grep -q "^Environment=APP_VERSION=${APP_VERSION}$" "${BUILD_DIR}/unit.service" \
   || { msg_error "Version konnte nicht in die systemd-Unit geschrieben werden."; exit 1; }
+grep -qF "Environment=OPENSSL_CONF=${APP_DIR}/openssl.cnf" "${BUILD_DIR}/unit.service" \
+  || { msg_error "OPENSSL_CONF konnte nicht in die systemd-Unit geschrieben werden."; exit 1; }
 
 pct push "$CT_ID" "$SERVER_SRC" "${APP_DIR}/server/server.js"
 pct push "$CT_ID" "$SERVER_PKG" "${APP_DIR}/server/package.json"
@@ -566,6 +583,16 @@ pct exec "$CT_ID" -- bash -c "
   find '${APP_DIR}' -type f -exec chmod 644 {} +
   chmod 0644 '/etc/systemd/system/${APP}.service'
 "
+
+if pct exec "$CT_ID" -- test -x /usr/sbin/runuser; then
+  if pct exec "$CT_ID" -- /usr/sbin/runuser -u "$APP_USER" -- env OPENSSL_CONF="${APP_DIR}/openssl.cnf" /opt/node/bin/node -e "require('node:crypto').randomBytes(8)"; then
+    msg_ok "Node-Preflight als ${APP_USER}: OK (OpenSSL-Config lesbar)."
+  else
+    msg_error "Node startet als ${APP_USER} nicht (OpenSSL/Rechte)."
+    diagnose || true
+    exit 1
+  fi
+fi
 msg_ok "App-Dateien bereit: ${APP_DIR}"
 
 # ---------------------------------------------------------------------------

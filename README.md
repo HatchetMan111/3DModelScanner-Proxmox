@@ -176,11 +176,25 @@ Häufige Ursachen:
 | Kein Template gefunden | `pveam update` prüfen, Template-Store prüfen |
 | Kein RootFS-Storage | `--storage local-lvm` oder vorhandenen Storage angeben |
 | Build scheitert | Host-Internet und `/tmp`-Platz prüfen; `--debug` zeigt npm-Ausgabe |
+| `OpenSSL configuration error ... /etc/ssl/openssl.cnf Permission denied` | Der Installer kopiert die Config nach `/opt/3d-model-anything/openssl.cnf` und setzt `OPENSSL_CONF`; Installer erneut mit `--ctid <ID>` ausführen |
 | HTTP 000 von außen | Proxmox-Host-Firewall oder falsche Bridge prüfen |
 | Port belegt | `--port <frei>` verwenden (Update installiert die Unit neu) |
 
 Der Dienst läuft als `modelanything` (kein root). Die Unit nutzt
 `Restart=always`, `After=network-online.target` und moderate Sandbox-Härtung.
+Node 22 lädt beim Start eine OpenSSL-Config; deshalb wird eine lesbare Kopie
+unter `/opt/3d-model-anything/openssl.cnf` abgelegt und per
+`Environment=OPENSSL_CONF=...` verwendet. Das umgeht Rechte- und
+Sandbox-Probleme mit `/etc/ssl` im unprivilegierten Container.
+
+Sofort-Fix für einen bereits installierten CT ohne Rebuild:
+
+```bash
+pct exec <ID> -- bash -c 'cp -L /etc/ssl/openssl.cnf /opt/3d-model-anything/openssl.cnf && chmod 644 /opt/3d-model-anything/openssl.cnf && chown root:modelanything /opt/3d-model-anything/openssl.cnf'
+pct exec <ID> -- bash -c "grep -q '^Environment=OPENSSL_CONF=' /etc/systemd/system/3d-model-anything.service || sed -i '/^Environment=PORT=/a Environment=OPENSSL_CONF=/opt/3d-model-anything/openssl.cnf' /etc/systemd/system/3d-model-anything.service"
+pct exec <ID> -- systemctl daemon-reload
+pct exec <ID> -- systemctl restart 3d-model-anything
+```
 
 ## Lokale Entwicklung
 
