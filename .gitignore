@@ -1,0 +1,6 @@
+node_modules/
+dist/
+data/captures/
+data/recordings/
+*.log
+.DS_Store

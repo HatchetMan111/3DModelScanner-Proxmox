@@ -1,0 +1,21 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Shell-Syntax
+        run: bash -n install/3d-model-anything.sh tests/smoke.sh
+      - name: ShellCheck
+        run: shellcheck -x install/3d-model-anything.sh tests/smoke.sh
+      - name: Server-Tests
+        run: npm test

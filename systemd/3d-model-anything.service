@@ -1,0 +1,29 @@
+[Unit]
+Description=3D Model Anything - lokaler Three.js-Raumviewer
+Documentation=https://github.com/HatchetMan111/3DModelScanner-Proxmox
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=modelanything
+Group=modelanything
+WorkingDirectory=/opt/3d-model-anything
+Environment=NODE_ENV=production
+Environment=PORT=5188
+Environment=APP_VERSION=1.0.0
+ExecStart=/opt/node/bin/node /opt/3d-model-anything/server/server.js
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
